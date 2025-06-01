@@ -95,6 +95,7 @@ class CallbackHandler:
         if pass_size:
             buttons.append([InlineKeyboardButton(f"👨‍👩‍👧 Пассажирская ({pass_size} мм)", callback_data=f"single_right_{type_id}")])
         buttons.append([InlineKeyboardButton("🔙 Назад", callback_data=f"type_{type_id}")])
+        buttons.append([InlineKeyboardButton("🔄 Новый поиск", callback_data="new_search")])
         car_rows = self.db.cars_df[
             (self.db.cars_df['brand'] == store.get('brand', '')) &
             (self.db.cars_df['model'] == store.get('model', '')) &
@@ -174,6 +175,7 @@ class CallbackHandler:
         if wb_url and isinstance(wb_url, str) and wb_url.startswith("http"):
             buttons.append([InlineKeyboardButton("🟣 Купить на Wildberries", url=wb_url)])
         buttons.append([InlineKeyboardButton("🔙 Назад", callback_data=f"single_{type_id}")])
+        buttons.append([InlineKeyboardButton("🔄 Новый поиск", callback_data="new_search")])
         await query.message.edit_text(
             message,
             reply_markup=InlineKeyboardMarkup(buttons),
@@ -310,7 +312,8 @@ class CallbackHandler:
         # Добавление кнопки "Назад"
         back_to_frames_id = self.user_manager.store_callback_data({**store})
         buttons.append([InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_frames_{back_to_frames_id}")])
-        
+        buttons.append([InlineKeyboardButton("🔄 Новый поиск", callback_data="new_search")])
+
         # Получение информации об автомобиле
         car_rows = self.db.cars_df[
             (self.db.cars_df['brand'] == store.get('brand', '')) &
@@ -393,7 +396,8 @@ class CallbackHandler:
             "gy_frame": frame
         })
         buttons.append([InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_frames_{back_to_frames_id}")])
-        
+        buttons.append([InlineKeyboardButton("🔄 Новый поиск", callback_data="new_search")])
+
         # Получение информации об автомобиле
         car_rows = self.db.cars_df[
             (self.db.cars_df['brand'] == store.get('brand', '')) &
@@ -495,7 +499,8 @@ class CallbackHandler:
             buttons.append([InlineKeyboardButton("🟣 Комплект на Wildberries", url=wb_kit_url)])
         
         buttons.append([InlineKeyboardButton("🔙 Назад", callback_data=f"type_{type_id}")])
-        
+        buttons.append([InlineKeyboardButton("🔄 Новый поиск", callback_data="new_search")])
+
         await query.message.edit_text(
             message,
             reply_markup=InlineKeyboardMarkup(buttons),
@@ -630,7 +635,8 @@ class CallbackHandler:
         # Добавление кнопки "Назад"
         back_to_frames_id = self.user_manager.store_callback_data({**store})
         buttons.append([InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_frames_{back_to_frames_id}")])
-        
+        buttons.append([InlineKeyboardButton("🔄 Новый поиск", callback_data="new_search")])
+
         # Получение информации об автомобиле
         car_rows = self.db.cars_df[
             (self.db.cars_df['brand'] == store.get('brand', '')) &
