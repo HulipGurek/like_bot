@@ -84,7 +84,7 @@ class CallbackHandler:
         store = self.user_manager.get_callback_data(type_id)
         if not store:
             await query.message.edit_text(
-                text="⚠️ Не удалось найти информацию о выбранной щетке. Пожалуйста, начните поиск заново."
+                text="⚠️ Не удалось найти информацию о выбранной щетке. Пожалуйста, начните поиск заново. /start"
             )
             return
         buttons = []
@@ -115,7 +115,7 @@ class CallbackHandler:
                     type_desc = f"\n\n<i>{desc}</i>"
         message = (
             f"{car_info}\n"
-            f"<b>Выбран тип щётки:</b> <i>{frame} {gy_type}</i>{type_desc}\n\n"
+            f"<b>Выбран тип:</b> <i>{frame} {gy_type}</i>{type_desc}\n\n"
             f"<b>Выберите сторону для покупки одной щётки:</b>"
         )
         await query.message.edit_text(
@@ -134,7 +134,7 @@ class CallbackHandler:
         store = self.user_manager.get_callback_data(type_id)
         if not store:
             await query.message.edit_text(
-                text="⚠️ Не удалось найти информацию о выбранной щетке. Пожалуйста, начните поиск заново."
+                text="⚠️ Не удалось найти информацию о выбранной щетке. Пожалуйста, начните поиск заново. /start"
             )
             return
         frame = store.get('gy_frame', '')
@@ -165,7 +165,7 @@ class CallbackHandler:
                     type_desc = f"\n\n<i>{desc}</i>"
         message = (
             f"{car_info}\n"
-            f"<b>Выбран тип щётки:</b> <i>{frame} {gy_type}</i>{type_desc}\n\n"
+            f"<b>Выбран тип:</b> <i>{frame} {gy_type}</i>{type_desc}\n\n"
             f"<b>{side_name} щётка ({size} мм)</b>\n\n"
             f"<b>Выберите магазин для покупки:</b>"
         )
@@ -199,7 +199,7 @@ class CallbackHandler:
         
         if not store:
             await query.message.edit_text(
-                text="⚠️ Не удалось найти информацию о выбранной модели. Пожалуйста, начните поиск заново."
+                text="⚠️ Не удалось найти информацию о выбранной модели. Пожалуйста, начните поиск заново. /start"
             )
             return
         
@@ -211,7 +211,7 @@ class CallbackHandler:
         
         if car_rows.empty:
             await query.message.edit_text(
-                text="⚠️ Не удалось найти информацию о выбранной модели. Пожалуйста, начните поиск заново."
+                text="⚠️ Не удалось найти информацию о выбранной модели. Пожалуйста, начните поиск заново. /start"
             )
             return
         
@@ -255,7 +255,7 @@ class CallbackHandler:
         buttons.append([InlineKeyboardButton("🔄 Новый поиск", callback_data="new_search")])
         
         await query.message.edit_text(
-            car_info + "\n<b>Выберите тип корпуса щётки:</b>",
+            car_info + "\n<b>Выберите тип:</b>",
             reply_markup=InlineKeyboardMarkup(buttons),
             parse_mode='HTML'
         )
@@ -273,7 +273,7 @@ class CallbackHandler:
         
         if not store:
             await query.message.edit_text(
-                text="⚠️ Не удалось найти информацию о выбранном корпусе. Пожалуйста, начните поиск заново."
+                text="⚠️ Не удалось найти информацию о выбранном корпусе. Пожалуйста, начните поиск заново. /start"
             )
             return
         
@@ -304,12 +304,10 @@ class CallbackHandler:
         buttons = []
         for _, rowt in available_types.iterrows():
             gy_type = rowt['gy_type']
-            type_id = self.user_manager.store_callback_data({
-                **store, "gy_type": gy_type
-            })
+            type_id = self.user_manager.store_callback_data({**store, "gy_type": gy_type})
             buttons.append([InlineKeyboardButton(str(gy_type), callback_data=f"type_{type_id}")])
-        
-        # Добавление кнопки "Назад"
+
+        # Кнопки "Назад" и "Новый поиск"
         back_to_frames_id = self.user_manager.store_callback_data({**store})
         buttons.append([InlineKeyboardButton("🔙 Назад", callback_data=f"back_to_frames_{back_to_frames_id}")])
         buttons.append([InlineKeyboardButton("🔄 Новый поиск", callback_data="new_search")])
@@ -320,17 +318,30 @@ class CallbackHandler:
             (self.db.cars_df['model'] == store.get('model', '')) &
             (self.db.cars_df['years'] == store.get('years', ''))
         ]
-        
+
         if car_rows.empty:
             await query.message.edit_text(
-                text="⚠️ Не удалось найти информацию о выбранной модели. Пожалуйста, начните поиск заново."
+                text="⚠️ Не удалось найти информацию о выбранной модели. Пожалуйста, начните поиск заново. /start"
             )
             return
-        
+
         car_info = self.db.get_car_info(car_rows.iloc[0])
-        
+        frame = store['gy_frame']
+
+        # Формируем message только теперь!
+        message = car_info + f"\n<b>Выберите вид щётки:</b>"
+
+        # Отправляем картинку корпуса (если нужна)
+        img_dir = Config.WIPER_TYPES_IMG_DIR
+        img_filename = f"{frame}.png"
+        img_path = os.path.join(img_dir, img_filename)
+        if os.path.exists(img_path):
+            with open(img_path, "rb") as photo:
+                await query.message.reply_photo(photo=photo)
+
+        # Теперь точно отправляем текст с кнопками
         await query.message.edit_text(
-            car_info + f"\n<b>Выберите вид щётки корпуса <i>{frame}</i>:</b>",
+            message,
             reply_markup=InlineKeyboardMarkup(buttons),
             parse_mode='HTML'
         )
@@ -348,7 +359,7 @@ class CallbackHandler:
         
         if not store:
             await query.message.edit_text(
-                text="⚠️ Не удалось найти информацию о выбранном виде щетки. Пожалуйста, начните поиск заново."
+                text="⚠️ Не удалось найти информацию о выбранном виде щетки. Пожалуйста, начните поиск заново. /start"
             )
             return
         
@@ -371,6 +382,7 @@ class CallbackHandler:
         mount = store['mount']
         driver_size = store['driver_size']
         pass_size = store['pass_size']
+        
         
         # Получение ссылок на комплект щеток
         ozon_kit_url, wb_kit_url = self.db.get_wiper_kit_links(frame, gy_type, mount, driver_size, pass_size)
@@ -407,7 +419,7 @@ class CallbackHandler:
         
         if car_rows.empty:
             await query.message.edit_text(
-                text="⚠️ Не удалось найти информацию о выбранной модели. Пожалуйста, начните поиск заново."
+                text="⚠️ Не удалось найти информацию о выбранной модели. Пожалуйста, начните поиск заново. /start"
             )
             return
         
@@ -425,13 +437,33 @@ class CallbackHandler:
         # Формирование сообщения
         message = (
             f"{car_info}\n"
-            f"<b>Выбран тип щётки:</b> <i>{frame} {gy_type}</i>{type_desc}\n\n"
+            f"<b>Выбран тип:</b> <i>{frame} {gy_type}</i>{type_desc}\n\n"
             f"<b>Что вы хотите сделать?</b>"
         )
+
+        # ... всё что было ДО message ...
+        message = (
+            f"{car_info}\n"
+            f"<b>Выбран тип:</b> <i>{frame} {gy_type}</i>{type_desc}\n\n"
+            f"<b>Что вы хотите сделать?</b>"
+        )
+
         
-        # Отправка сообщения с кнопками
-        await query.message.edit_text(
-            message,
+        img_dir = Config.WIPER_TYPES_IMG_DIR
+        img_filename = f"{gy_type}.png"
+        img_path = os.path.join(img_dir, img_filename)
+
+        if os.path.exists(img_path):
+            # 1. Отправляем фото (без caption)
+            await context.bot.send_photo(
+                chat_id=query.message.chat_id,
+                photo=open(img_path, "rb")
+            )
+
+        # 2. Сразу после этого отправляем текст с кнопками (reply_markup)
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=message,
             reply_markup=InlineKeyboardMarkup(buttons),
             parse_mode='HTML'
         )
@@ -449,7 +481,7 @@ class CallbackHandler:
         
         if not store:
             await query.message.edit_text(
-                text="⚠️ Не удалось найти информацию о выбранном комплекте. Пожалуйста, начните поиск заново."
+                text="⚠️ Не удалось найти информацию о выбранном комплекте. Пожалуйста, начните поиск заново. /start"
             )
             return
         
@@ -485,7 +517,7 @@ class CallbackHandler:
         # Формирование сообщения
         message = (
             f"{car_info}\n"
-            f"<b>Выбран тип щётки:</b> <i>{frame} {gy_type}</i>{type_desc}\n\n"
+            f"<b>Выбран тип:</b> <i>{frame} {gy_type}</i>{type_desc}\n\n"
             f"<b>Выберите магазин для покупки комплекта щёток:</b>"
         )
         
@@ -520,7 +552,7 @@ class CallbackHandler:
             context: Контекст обработчика
         """
         await query.message.edit_text(
-            text="Введите марку или модель автомобиля:"
+            text="Введите марку автомобиля:"
         )
     
     async def _handle_back_to_frames(self, query: Update.callback_query, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -536,7 +568,7 @@ class CallbackHandler:
         
         if not store:
             await query.message.edit_text(
-                text="⚠️ Не удалось вернуться к выбору корпуса. Пожалуйста, начните поиск заново."
+                text="⚠️ Не удалось вернуться к выбору корпуса. Пожалуйста, начните поиск заново. /start"
             )
             return
         
@@ -549,7 +581,7 @@ class CallbackHandler:
         
         if car_rows.empty:
             await query.message.edit_text(
-                text="⚠️ Не удалось найти информацию о выбранной модели. Пожалуйста, начните поиск заново."
+                text="⚠️ Не удалось найти информацию о выбранной модели. Пожалуйста, начните поиск заново. /start"
             )
             return
         
@@ -587,7 +619,7 @@ class CallbackHandler:
         buttons.append([InlineKeyboardButton("🔄 Новый поиск", callback_data="new_search")])
         
         await query.message.edit_text(
-            car_info + "\n<b>Выберите тип корпуса щётки:</b>",
+            car_info + "\n<b>Выберите тип:</b>",
             reply_markup=InlineKeyboardMarkup(buttons),
             parse_mode='HTML'
         )
@@ -605,7 +637,7 @@ class CallbackHandler:
         
         if not store:
             await query.message.edit_text(
-                text="⚠️ Не удалось вернуться к выбору вида щетки. Пожалуйста, начните поиск заново."
+                text="⚠️ Не удалось вернуться к выбору вида щетки. Пожалуйста, начните поиск заново. /start"
             )
             return
         
@@ -646,14 +678,14 @@ class CallbackHandler:
         
         if car_rows.empty:
             await query.message.edit_text(
-                text="⚠️ Не удалось найти информацию о выбранной модели. Пожалуйста, начните поиск заново."
+                text="⚠️ Не удалось найти информацию о выбранной модели. Пожалуйста, начните поиск заново. /start"
             )
             return
         
         car_info = self.db.get_car_info(car_rows.iloc[0])
         
         await query.message.edit_text(
-            car_info + f"\n<b>Выберите вид щётки корпуса <i>{frame}</i>:</b>",
+            car_info + f"\n<b>Выберите вид щётки:</b>",
             reply_markup=InlineKeyboardMarkup(buttons),
             parse_mode='HTML'
         )
