@@ -71,7 +71,7 @@ class MessageHandler:
             synonyms = self.synonym_manager.get_synonyms()
             for canon, syns in synonyms.items():
                 if brand_query_norm in [s.lower() for s in syns] or brand_query_norm == canon.lower():
-                    for brand_variant in [canon] + syns:
+                    for brand_variant in [canon] + (syns if isinstance(syns, list) else [syns]):
                         brand_matches = self.db.cars_df[self.db.cars_df['brand'].str.lower() == brand_variant.lower()]
                         if not brand_matches.empty:
                             matches = pd.concat([matches, brand_matches])
@@ -79,7 +79,7 @@ class MessageHandler:
         # Если не найдено совпадений
         if matches.empty:
             await update.message.reply_text(
-                f"😔 По запросу <b>\"{brand_query}\"</b> не найдено ни одной марки автомобиля.\n\n"
+                f"По запросу <b>\"{brand_query}\"</b> не найдено ни одной марки автомобиля.\n\n"
                 f"Попробуйте другой запрос, например:\n"
                 f"• BMW\n• KIA\n• Audi",
                 parse_mode='HTML'
@@ -210,9 +210,10 @@ class MessageHandler:
         # Если нет совпадений и нет похожих результатов
         if matches.empty:
             await update.message.reply_text(
-                f"😔 По запросу <b>\"{text}\"</b> ничего не найдено.\n\n"
+                f"По запросу <b>\"{text}\"</b> ничего не найдено.\n\n"
                 f"Попробуйте другой запрос, например:\n"
-                f"• BMW 5\n• KIA RIO\n• Audi Q7 2019",
+                f"• Audi • KIA • Lada\n"
+                f"/start",
                 parse_mode='HTML'
             )
             return
@@ -252,22 +253,13 @@ class MessageHandler:
                 btn = InlineKeyboardButton(str(frame), callback_data=f"frame_{frame_id}")
                 buttons.append([btn])
             
-            # Добавление кнопки для добавления в избранное
-            fav_id = self.user_manager.store_callback_data({
-                "brand": car['brand'],
-                "model": car['model'],
-                "years": car['years'],
-                "mount": mount,
-                "driver_size": driver_size,
-                "pass_size": pass_size
-            })
-            buttons.append([InlineKeyboardButton("⭐ Добавить в избранное", callback_data=f"add_favorite_{fav_id}")])
+
             
             # Добавление кнопки для нового поиска
             buttons.append([InlineKeyboardButton("🔄 Новый поиск", callback_data="new_search")])
             
             await update.message.reply_text(
-                car_info + "\n<b>Выберите тип корпуса щётки:</b>",
+                car_info + "\n<b>Выберите тип щётки:</b>",
                 reply_markup=InlineKeyboardMarkup(buttons),
                 parse_mode='HTML'
             )

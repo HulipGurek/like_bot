@@ -58,7 +58,7 @@ class WipersBot:
         self.application.add_handler(CommandHandler("start", self.command_handler.start))
         self.application.add_handler(CommandHandler("help", self.command_handler.help))
         self.application.add_handler(CommandHandler("stats", self.command_handler.stats))
-        self.application.add_handler(CommandHandler("favorites", self.command_handler.favorites))
+        
         self.application.add_handler(CommandHandler("feedback", self.command_handler.feedback))
         self.application.add_handler(CommandHandler("cancel", self.command_handler.cancel))
         self.application.add_handler(CommandHandler("brand", self.command_handler.brand))  # Новая команда

@@ -11,6 +11,9 @@ from telegram.ext import ContextTypes
 from config import Config
 from utils.user_manager import UserManager
 from utils.logging_utils import log_user_action
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+MODELS_PER_PAGE = 100  # Можно вынести в Config
 
 logger = logging.getLogger(__name__)
 
@@ -46,37 +49,64 @@ class CommandHandler:
                     await update.message.reply_video(
                         video=video,
                         caption="👋 <b>Привет!</b>\n\nЯ помогу подобрать подходящие щётки стеклоочистителя для вашего автомобиля.\n\n"
-                                "Напишите марку и следуйте указаниям, например:\n"
+                                "Напишите марку и следуйте моим инструкциям, например:\n"
                                 "• Lada • KIA • Renault •\n\n"                                
-                                "Команды:\n"
-                                "/start - Начать работу с ботом\n"
-                                "/brand - Поиск по марке автомобиля\n"
-                                "/feedback - Оставить отзыв\n"
+
                                 "/help - Справка по использованию\n"
                                 ,
                         parse_mode='HTML'
                     )
             else:
                 await update.message.reply_text(
-                    f"👋 <b>Приветствую!</b>\n"
-                    "Я помогу подобрать лучшие щетки Goodyear для вашего авто.\n\n"
-                    "Просто напишите марку или модель автомобиля, например:\n"
-                    "• BMW 5\n• KIA RIO\n• Audi Q7 2019\n\n"
-                    "Команды:\n"
-                    "/help - Справка по использованию\n"
+                    f"👋 <b>Привет!</b>\n\nЯ помогу подобрать подходящие щётки стеклоочистителя для вашего автомобиля.\n\n"
+                                "Напишите марку и следуйте инструкциям, например:\n"
+                                "• Lada • KIA • Renault •\n\n"                                
+
+                                "/help - Справка по использованию\n"
                                         ,
                     parse_mode='HTML'
                 )
         except Exception as e:
             logger.error(f"Не удалось отправить приветственное сообщение: {e}")
             await update.message.reply_text(
-                "👋 <b>Приветствую!</b>\n"
-                "Я помогу подобрать лучшие щетки Goodyear для вашего авто.\n\n"
-                "Просто напишите марку или модель автомобиля, например:\n"
-                "• BMW 5\n• KIA RIO\n• Nissan X trail",
+                "👋 <b>Привет!</b>\n\nЯ помогу подобрать подходящие щётки стеклоочистителя для вашего автомобиля.\n\n"
+                                "Напишите марку и следуйте моим инструкциям, например:\n"
+                                "• Lada • KIA • Renault •\n\n"                                
+
+                                "/help - Справка по использованию\n",
                 parse_mode='HTML'
             )
-    
+    async def show_models_with_pagination(self, update, context, brand: str, page: int = 0):
+        models = self.user_manager.get_models_for_brand(brand)
+        total = len(models)
+        start = page * MODELS_PER_PAGE
+        end = start + MODELS_PER_PAGE
+        current_models = models[start:end]
+
+        if not current_models:
+            await update.message.reply_text(f"Не найдено моделей для марки {brand.title()}.")
+            return
+
+        buttons = []
+        for model in current_models:
+            model_id = self.user_manager.store_callback_data({"brand": brand, "model": model})
+            buttons.append([InlineKeyboardButton(model, callback_data=f"model_{model_id}")])
+
+        nav_buttons = []
+        if page > 0:
+            nav_buttons.append(InlineKeyboardButton("⬅️ Назад", callback_data=f"models_page_{page-1}_{brand}"))
+        if end < total:
+            nav_buttons.append(InlineKeyboardButton("➡️ Далее", callback_data=f"models_page_{page+1}_{brand}"))
+        if nav_buttons:
+            buttons.append(nav_buttons)
+        buttons.append([InlineKeyboardButton("🔄 Новый поиск", callback_data="new_search")])
+
+        await update.message.reply_text(
+            f"<b>Выберите модель для {brand.title()}:</b>\nПоказано {start+1}-{min(end, total)} из {total}",
+            reply_markup=InlineKeyboardMarkup(buttons),
+            parse_mode='HTML'
+        )
+        
     async def help(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """
         Обрабатывает команду /help.
@@ -90,14 +120,13 @@ class CommandHandler:
         
         await update.message.reply_text(
             "<b>Справка по использованию бота</b>\n\n"
-            "Этот бот поможет вам подобрать щетки Goodyear для вашего автомобиля.\n\n"
+            "Этот бот поможет подобрать щётки Goodyear для вашего автомобиля.\n\n"
             "<b>Как пользоваться:</b>\n"
-            "1. Напишите марку или модель автомобиля (например, 'BMW 5', 'KIA RIO', 'Audi Q7 2019')\n"
+            "1. Напишите марку\n"
             "2. Выберите точную модель из списка\n"
-            "3. Выберите тип корпуса щетки\n"
-            "4. Выберите вид щетки\n"
-            "5. Выберите комплект или одну щетку\n"
-            "6. Перейдите по ссылке для покупки\n\n"
+            "3. Выберите тип и вид щётки\n"
+            "4. Выберите маркетплейс для покупки\n\n"
+
             "<b>Доступные команды:</b>\n"
             "/start - Начать работу с ботом\n"
             "/help - Показать эту справку\n"
@@ -105,9 +134,9 @@ class CommandHandler:
             "/feedback - Отправить отзыв о работе бота\n\n"
             "<b>Советы:</b>\n"
             "• Вы можете указать год выпуска автомобиля для более точного поиска\n"
-            "• Добавляйте автомобили в избранное, чтобы быстро находить их в будущем\n"
+            
             "• Используйте команду /brand для поиска всех моделей определенной марки\n"
-            "• Если у вас возникли проблемы, используйте команду /feedback",
+            "• Оставить отзыв можно использовав команду /feedback",
             parse_mode='HTML'
         )
     async def stats(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -130,71 +159,7 @@ class CommandHandler:
             parse_mode='HTML'
         )
     
-    async def favorites(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """
-        Обрабатывает команду /favorites.
-        
-        Args:
-            update: Объект обновления Telegram
-            context: Контекст обработчика
-        """
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-        
-        user = update.effective_user
-        log_user_action(user.id, user.username, "FAVORITES")
-        
-        favorites = self.user_manager.get_favorites(user.id)
-        
-        if not favorites:
-            await update.message.reply_text(
-                "У вас пока нет избранных автомобилей. Добавьте автомобили в избранное при поиске."
-            )
-            return
-        
-        # Формирование сообщения
-        message = f"<b>Ваши избранные автомобили (1-{min(Config.PAGINATION_SIZE, len(favorites))} из {len(favorites)}):</b>\n\n"
-        
-        # Создание кнопок
-        buttons = []
-        
-        for i, car in enumerate(favorites[:Config.PAGINATION_SIZE]):
-            brand = car.get('brand', '')
-            model = car.get('model', '')
-            years = car.get('years', '')
-            
-            message += f"{i+1}. {brand.title()} {model.upper()} ({years})\n"
-            
-            # Создание кнопки для выбора автомобиля
-            car_id = self.user_manager.store_callback_data(car)
-            buttons.append([InlineKeyboardButton(
-                f"{i+1}. {brand.title()} {model.upper()} ({years})",
-                callback_data=f"model_{car_id}"
-            )])
-            
-            # Создание кнопки для удаления из избранного
-            remove_id = self.user_manager.store_callback_data({"index": i})
-            buttons.append([InlineKeyboardButton(
-                f"❌ Удалить {brand.title()} {model.upper()} из избранного",
-                callback_data=f"remove_favorite_{remove_id}"
-            )])
-        
-        # Добавление кнопок пагинации
-        pagination_buttons = []
-        
-        if len(favorites) > Config.PAGINATION_SIZE:
-            pagination_buttons.append(InlineKeyboardButton("➡️ Вперед", callback_data="page_1"))
-        
-        if pagination_buttons:
-            buttons.append(pagination_buttons)
-        
-        # Добавление кнопки для нового поиска
-        buttons.append([InlineKeyboardButton("🔄 Новый поиск", callback_data="new_search")])
-        
-        await update.message.reply_text(
-            message,
-            reply_markup=InlineKeyboardMarkup(buttons),
-            parse_mode='HTML'
-        )
+
     
     async def feedback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         """
@@ -271,7 +236,7 @@ class CommandHandler:
         message_handler = MessageHandler(self.database, self.user_manager, self.synonym_manager)
         
         # Выполняем поиск по марке
-        await message_handler.handle_brand_search(update, context, brand_query)
+        await self.show_models_with_pagination(update, context, brand_query, page=0)
     
     async def handle_feedback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
         """

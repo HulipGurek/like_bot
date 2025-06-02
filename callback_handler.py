@@ -34,7 +34,15 @@ class CallbackHandler:
                 return
             data = query.data
             log_user_action(user.id, user.username, "BUTTON_CLICK", data)
-
+            if data.startswith("models_page_"):
+                # Пример: models_page_1_KIA
+                parts = data.split("_")
+                page = int(parts[2])
+                brand = "_".join(parts[3:])  # если бренд состоит из нескольких слов
+                from handlers.command_handler import CommandHandler
+                handler = CommandHandler(self.user_manager)
+                await handler.show_models_with_pagination(update, context, brand, page)
+                return
             # --- Патч brand_search_fixes: расширенная обработка single_ ---
             if data.startswith("model_"):
                 await self._handle_model_selection(query, context)
@@ -91,9 +99,9 @@ class CallbackHandler:
         driver_size = store.get('driver_size')
         pass_size = store.get('pass_size')
         if driver_size:
-            buttons.append([InlineKeyboardButton(f"👨‍✈️ Водительская ({driver_size} мм)", callback_data=f"single_left_{type_id}")])
+            buttons.append([InlineKeyboardButton(f"➡️ Правая ({driver_size} мм)", callback_data=f"single_left_{type_id}")])
         if pass_size:
-            buttons.append([InlineKeyboardButton(f"👨‍👩‍👧 Пассажирская ({pass_size} мм)", callback_data=f"single_right_{type_id}")])
+            buttons.append([InlineKeyboardButton(f"⬅️ Левая ({pass_size} мм)", callback_data=f"single_right_{type_id}")])
         buttons.append([InlineKeyboardButton("🔙 Назад", callback_data=f"type_{type_id}")])
         buttons.append([InlineKeyboardButton("🔄 Новый поиск", callback_data="new_search")])
         car_rows = self.db.cars_df[
