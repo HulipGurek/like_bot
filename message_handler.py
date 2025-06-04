@@ -298,7 +298,7 @@ class MessageHandler:
                     "years": row['years'],
                 })
                 callback_data = f"model_{callback_id}"
-                button_text = f"{row['brand'].title()} {row['model'].upper()} ({row['years']})"
+                button_text = f"{row['model'].upper()} ({row['years']})"
                 buttons.append([InlineKeyboardButton(button_text, callback_data=callback_data)])
                 seen.add(key)
             

@@ -80,10 +80,6 @@ class CallbackHandler:
             except Exception:
                 pass
 
-    # --- Остальные методы по выбору модели, корпуса, типа, комплекта и т.д. ---
-    # --- ВАЖНО: эти методы остаются без изменений, если не затронуты патчем ---
-
-    # --- brand_search_fixes: Добавлено! ---
     async def _handle_single_wiper_selection(self, query: Update.callback_query, context: ContextTypes.DEFAULT_TYPE) -> None:
         '''
         Обрабатывает выбор одной щетки.
@@ -149,7 +145,7 @@ class CallbackHandler:
         gy_type = store.get('gy_type', '')
         mount = store.get('mount', '')
         size = store.get('driver_size') if is_left else store.get('pass_size')
-        side_name = "Водительская" if is_left else "Пассажирская"
+        side_name = "Правая" if is_left else "Левая"
         if not size:
             await query.message.edit_text(
                 text=f"⚠️ Не удалось найти размер для {side_name.lower()} стороны. Пожалуйста, выберите другую сторону."
@@ -190,8 +186,7 @@ class CallbackHandler:
             parse_mode='HTML'
         )
 
-    # --- Остальные методы: _handle_model_selection, _handle_frame_selection, _handle_type_selection и т.д. ---
-    # --- Их оставь как они есть в твоём исходнике, они НЕ затрагиваются патчами! ---
+
 
     
     async def _handle_model_selection(self, query: Update.callback_query, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -207,7 +202,7 @@ class CallbackHandler:
         
         if not store:
             await query.message.edit_text(
-                text="⚠️ Не удалось найти информацию о выбранной модели. Пожалуйста, начните поиск заново. /start"
+                text="⚠️ Нет подходящих щёток.\n /start"
             )
             return
         
@@ -219,7 +214,7 @@ class CallbackHandler:
         
         if car_rows.empty:
             await query.message.edit_text(
-                text="⚠️ Не удалось найти информацию о выбранной модели. Пожалуйста, начните поиск заново. /start"
+                text="⚠️ Нет подходящих щёток.\n /start"
             )
             return
         
@@ -698,136 +693,3 @@ class CallbackHandler:
             parse_mode='HTML'
         )
     
-    async def _handle_add_favorite(self, query: Update.callback_query, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """
-        Обрабатывает добавление автомобиля в избранное.
-        
-        Args:
-            query: Объект callback-запроса
-            context: Контекст обработчика
-        """
-        fav_id = query.data.replace("add_favorite_", "")
-        store = self.user_manager.get_callback_data(fav_id)
-        
-        if not store:
-            await query.answer("⚠️ Не удалось добавить в избранное. Пожалуйста, попробуйте снова.")
-            return
-        
-        # Добавление в избранное
-        self.user_manager.add_to_favorites(query.from_user.id, store)
-        
-        await query.answer("✅ Автомобиль добавлен в избранное!")
-    
-    async def _handle_view_favorites(self, query: Update.callback_query, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """
-        Обрабатывает просмотр избранных автомобилей.
-        
-        Args:
-            query: Объект callback-запроса
-            context: Контекст обработчика
-        """
-        user_id = query.from_user.id
-        favorites = self.user_manager.get_favorites(user_id)
-        
-        if not favorites:
-            await query.message.edit_text(
-                text="У вас пока нет избранных автомобилей. Добавьте автомобили в избранное при поиске."
-            )
-            return
-        
-        # Определение текущей страницы
-        page = 0
-        if "_" in query.data:
-            try:
-                page = int(query.data.split("_")[1])
-            except (ValueError, IndexError):
-                page = 0
-        
-        # Пагинация
-        start_idx = page * Config.PAGINATION_SIZE
-        end_idx = min(start_idx + Config.PAGINATION_SIZE, len(favorites))
-        current_page_items = favorites[start_idx:end_idx]
-        
-        # Формирование сообщения
-        message = f"<b>Ваши избранные автомобили ({start_idx+1}-{end_idx} из {len(favorites)}):</b>\n\n"
-        
-        # Создание кнопок
-        buttons = []
-        
-        for i, car in enumerate(current_page_items, start=start_idx):
-            brand = car.get('brand', '')
-            model = car.get('model', '')
-            years = car.get('years', '')
-            
-            message += f"{i+1}. {brand.title()} {model.upper()} ({years})\n"
-            
-            # Создание кнопки для выбора автомобиля
-            car_id = self.user_manager.store_callback_data(car)
-            buttons.append([InlineKeyboardButton(
-                f"{i+1}. {brand.title()} {model.upper()} ({years})",
-                callback_data=f"model_{car_id}"
-            )])
-            
-            # Создание кнопки для удаления из избранного
-            remove_id = self.user_manager.store_callback_data({"index": i})
-            buttons.append([InlineKeyboardButton(
-                f"❌ Удалить {brand.title()} {model.upper()} из избранного",
-                callback_data=f"remove_favorite_{remove_id}"
-            )])
-        
-        # Добавление кнопок пагинации
-        pagination_buttons = []
-        
-        if page > 0:
-            pagination_buttons.append(InlineKeyboardButton("⬅️ Назад", callback_data=f"page_{page-1}"))
-        
-        if end_idx < len(favorites):
-            pagination_buttons.append(InlineKeyboardButton("➡️ Вперед", callback_data=f"page_{page+1}"))
-        
-        if pagination_buttons:
-            buttons.append(pagination_buttons)
-        
-        # Добавление кнопки для нового поиска
-        buttons.append([InlineKeyboardButton("🔄 Новый поиск", callback_data="new_search")])
-        
-        await query.message.edit_text(
-            message,
-            reply_markup=InlineKeyboardMarkup(buttons),
-            parse_mode='HTML'
-        )
-    
-    async def _handle_remove_favorite(self, query: Update.callback_query, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """
-        Обрабатывает удаление автомобиля из избранного.
-        
-        Args:
-            query: Объект callback-запроса
-            context: Контекст обработчика
-        """
-        remove_id = query.data.replace("remove_favorite_", "")
-        store = self.user_manager.get_callback_data(remove_id)
-        
-        if not store or "index" not in store:
-            await query.answer("⚠️ Не удалось удалить из избранного. Пожалуйста, попробуйте снова.")
-            return
-        
-        # Удаление из избранного
-        removed = self.user_manager.remove_from_favorites(query.from_user.id, store["index"])
-        
-        if removed:
-            await query.answer("✅ Автомобиль удален из избранного!")
-            # Обновление списка избранного
-            await self._handle_view_favorites(query, context)
-        else:
-            await query.answer("⚠️ Не удалось удалить из избранного. Пожалуйста, попробуйте снова.")
-    
-    async def _handle_pagination(self, query: Update.callback_query, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """
-        Обрабатывает пагинацию.
-        
-        Args:
-            query: Объект callback-запроса
-            context: Контекст обработчика
-        """
-        # Просто перенаправляем на обработку просмотра избранного с указанной страницей
-        await self._handle_view_favorites(query, context)
