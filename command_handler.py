@@ -76,8 +76,17 @@ class CommandHandler:
                                 "/help - Справка по использованию\n",
                 parse_mode='HTML'
             )
+            
     async def show_models_with_pagination(self, update, context, brand: str, page: int = 0):
         models = self.user_manager.get_models_for_brand(brand)
+        # 1. Приводим к строке и убираем пробелы
+        models = [str(m).strip() for m in models]
+        # 2. Сортируем по всей строке
+        models = sorted(models, key=lambda m: m.upper())
+
+        # Для отладки, выведи в консоль — увидишь, если есть лишние пробелы или не строки
+        print("MODELS:", models)
+
         total = len(models)
         start = page * MODELS_PER_PAGE
         end = start + MODELS_PER_PAGE

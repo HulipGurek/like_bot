@@ -99,7 +99,7 @@ class MessageHandler:
             parse_mode='HTML'
         )
 
-    def _create_model_buttons_multirow(self, matches: pd.DataFrame, buttons_per_row: int = 2) -> List[List[InlineKeyboardButton]]:
+    def _create_model_buttons_multirow(self, matches: pd.DataFrame, buttons_per_row: int = 1) -> List[List[InlineKeyboardButton]]:
         """
         Создает кнопки для выбора модели автомобиля с несколькими кнопками в строке.
         
