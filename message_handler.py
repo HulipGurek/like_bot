@@ -86,12 +86,9 @@ class MessageHandler:
             )
             return
         
-        # Создаем кнопки с моделями и годами выпуска, несколько кнопок в строке
         buttons = self._create_model_buttons_multirow(matches)
-        
-        # Добавляем кнопку для нового поиска
         buttons.append([InlineKeyboardButton("🔄 Новый поиск", callback_data="new_search")])
-        
+
         await update.message.reply_text(
             f"🔍 По марке <b>\"{brand_query}\"</b> найдено {len(matches)} моделей:\n\n"
             f"Выберите модель из списка:",
@@ -109,7 +106,9 @@ class MessageHandler:
             
         Returns:
             List[List[InlineKeyboardButton]]: Список кнопок
+
         """
+        matches = matches.sort_values(by=["model", "years"], ascending=[True, True])
         buttons = []
         current_row = []
         seen = set()
@@ -277,18 +276,9 @@ class MessageHandler:
         )
     
     def _create_model_buttons(self, matches: pd.DataFrame) -> List[List[InlineKeyboardButton]]:
-        """
-        Создает кнопки для выбора модели автомобиля.
-        
-        Args:
-            matches: DataFrame с найденными моделями
-            
-        Returns:
-            List[List[InlineKeyboardButton]]: Список кнопок
-        """
+        matches = matches.sort_values(by=["model", "years"], ascending=[True, True]) 
         buttons = []
         seen = set()
-        
         for _, row in matches.iterrows():
             key = (row['brand'], row['model'], row['years'])
             if key not in seen:
@@ -301,8 +291,6 @@ class MessageHandler:
                 button_text = f"{row['model'].upper()} ({row['years']})"
                 buttons.append([InlineKeyboardButton(button_text, callback_data=callback_data)])
                 seen.add(key)
-            
             if len(buttons) >= Config.MAX_RESULTS:
                 break
-        
         return buttons

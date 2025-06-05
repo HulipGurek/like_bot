@@ -108,8 +108,10 @@ class CommandHandler:
             nav_buttons.append(InlineKeyboardButton("➡️ Далее", callback_data=f"models_page_{page+1}_{brand}"))
         if nav_buttons:
             buttons.append(nav_buttons)
+        # Кнопка "Новый поиск" всегда последней строкой!
         buttons.append([InlineKeyboardButton("🔄 Новый поиск", callback_data="new_search")])
 
+ 
         await update.message.reply_text(
             f"<b>Выберите модель для {brand.title()}:</b>\nПоказано {start+1}-{min(end, total)} из {total}",
             reply_markup=InlineKeyboardMarkup(buttons),
