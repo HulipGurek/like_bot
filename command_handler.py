@@ -245,9 +245,7 @@ class CommandHandler:
         
         # Создаем временный объект MessageHandler для использования его методов
         message_handler = MessageHandler(self.database, self.user_manager, self.synonym_manager)
-        
-        # Выполняем поиск по марке
-        await self.show_models_with_pagination(update, context, brand_query, page=0)
+        await message_handler.show_models_with_pagination(update, context, brand_query, page=0)
     
     async def handle_feedback(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> bool:
         """

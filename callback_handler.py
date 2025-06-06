@@ -14,34 +14,81 @@ from config import Config
 from utils.database import Database
 from utils.user_manager import UserManager
 from utils.logging_utils import log_user_action
+from handlers.message_handler import MessageHandler
+from utils.synonyms import SynonymManager
+from utils.text_utils import translit_ru_to_en
 
 logger = logging.getLogger(__name__)
 
 class CallbackHandler:
     """Класс для обработки callback-запросов."""
     
-    def __init__(self, database: Database, user_manager: UserManager):
+    def __init__(self, database: Database, user_manager: UserManager, synonym_manager: SynonymManager):
         self.db = database
         self.user_manager = user_manager
+        self.synonym_manager = synonym_manager
+
+    def translit_ru_to_en(text):
+        # Простейший пример, замени на свою функцию если есть в utils.text_utils
+        table = str.maketrans(
+            "абвгдеёжзийклмнопрстуфхцчшщьыъэюя",
+            "abvgdeejzijklmnoprstufhccss_y_eua"
+        )
+        return text.lower().translate(table)
 
     async def handle_callback_query(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         query = update.callback_query
         user = query.from_user
-        
         try:
             await query.answer()
             if not hasattr(query, 'data') or not query.data:
                 return
             data = query.data
             log_user_action(user.id, user.username, "BUTTON_CLICK", data)
+            # --- ПОСТРАНИЧНЫЙ ВЫВОД МОДЕЛЕЙ ---
             if data.startswith("models_page_"):
-                # Пример: models_page_1_KIA
                 parts = data.split("_")
                 page = int(parts[2])
-                brand = "_".join(parts[3:])  # если бренд состоит из нескольких слов
-                from handlers.command_handler import CommandHandler
-                handler = CommandHandler(self.user_manager)
-                await handler.show_models_with_pagination(update, context, brand, page)
+                brand_query_raw = "_".join(parts[3:])  # Может быть кириллица
+
+                # --- НОРМАЛИЗАЦИЯ БРЕНДА ---
+                synonyms = self.synonym_manager.get_synonyms()
+                brand_query_norm = brand_query_raw.strip().lower()
+                canonical_brand = None
+
+                # 1. Прямое совпадение
+                all_brands = [b.lower() for b in self.db.cars_df['brand'].unique()]
+                if brand_query_norm in all_brands:
+                    canonical_brand = brand_query_norm
+                else:
+                    # 2. Поиск по синонимам
+                    for canon, syns in synonyms.items():
+                        all_syns = [canon] + (syns if isinstance(syns, list) else [syns])
+                        all_syns_norm = [s.lower() for s in all_syns]
+                        if brand_query_norm in all_syns_norm:
+                            canonical_brand = canon.lower()
+                            break
+                # 3. Если не нашли — пробуем транслит
+                if not canonical_brand and any('а' <= x <= 'я' for x in brand_query_norm):
+                    brand_query_translit = translit_ru_to_en(brand_query_norm)
+                    if brand_query_translit in all_brands:
+                        canonical_brand = brand_query_translit
+                # 4. Если всё равно не нашли — ищем частичное совпадение
+                if not canonical_brand:
+                    for brand in self.db.cars_df['brand'].unique():
+                        if brand_query_norm in brand.lower():
+                            canonical_brand = brand.lower()
+                            break
+                # 5. Если вообще ничего — fallback
+                if not canonical_brand:
+                    canonical_brand = brand_query_norm
+
+                handler = MessageHandler(self.db, self.user_manager, self.synonym_manager)
+                matches = self.db.cars_df[self.db.cars_df['brand'].str.lower() == canonical_brand]
+                if matches.empty:
+                    matches = self.db.cars_df[self.db.cars_df['brand'].str.lower().str.contains(canonical_brand)]
+                matches = matches.sort_values(by=["model"], ascending=True, kind="stable")
+                await handler.show_models_with_pagination(update, context, matches, canonical_brand, page, edit=True)
                 return
             # --- Патч brand_search_fixes: расширенная обработка single_ ---
             if data.startswith("model_"):

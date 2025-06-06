@@ -41,7 +41,7 @@ class WipersBot:
         
         # Инициализация обработчиков
         self.message_handler = MessageHandler(self.db, self.user_manager, self.synonym_manager)
-        self.callback_handler = CallbackHandler(self.db, self.user_manager)
+        self.callback_handler = CallbackHandler(self.db, self.user_manager, self.synonym_manager)
         self.command_handler = BotCommandHandler(self.user_manager)
         
         # Инициализация приложения
